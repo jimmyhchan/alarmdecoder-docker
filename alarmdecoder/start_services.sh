@@ -38,11 +38,4 @@ if [ $? != 0 ]; then
 	exit 1
 fi
 
-sudo /etc/init.d/nginx start
-
-if [ $? != 0 ]; then
-	echo "Unable to start nginx...." >&2
-	exit 1
-fi
-
 exit 0

@@ -112,9 +112,10 @@ RUN sudo python setup.py install
 #cleanup nginx droppings
 # RUN sudo rm -r nginx-$VERSION
 
+# TODO: WHy pip install when it's already installed via apt??
 #upgrade gunicorn, hold packages from apt
-RUN sudo pip install gunicorn --upgrade
-RUN sudo ln -sf /usr/local/bin/gunicorn /usr/bin/gunicorn
+# RUN sudo pip install gunicorn --upgrade
+# RUN sudo ln -sf /usr/local/bin/gunicorn /usr/bin/gunicorn
 
 #hold packages so apt does not overwrite
 # RUN sudo echo "nginx hold" | sudo dpkg --set-selections
@@ -148,31 +149,32 @@ RUN python manage.py initdb
 # RUN sudo cp contrib/nginx/alarmdecoder /etc/nginx/sites-available/
 # RUN sudo ln -s /etc/nginx/sites-available/alarmdecoder /etc/nginx/sites-enabled/
 # RUN sudo rm /etc/nginx/sites-enabled/default
-RUN sudo mkdir /etc/gunicorn.d && sudo cp contrib/gunicorn.d/alarmdecoder /etc/gunicorn.d/
+# TODO: this is in supervisor
+# RUN sudo mkdir /etc/gunicorn.d && sudo cp contrib/gunicorn.d/alarmdecoder /etc/gunicorn.d/
 # TODO: move to ser2sock
 RUN sudo chown -R pi:pi /etc/ser2sock
-# RUN sudo usermod -a -G dialout pi
+RUN sudo usermod -a -G dialout pi
 # RUN sudo chgrp dialout /etc/hosts /etc/hostname
 # RUN sudo chmod g+w /etc/hosts /etc/hostname
 
 #gunicorn systemd file
-RUN sudo echo -e '[Unit]\n\
-Description=gunicorn daemon\n\
-After=network.target\n\
-\n\
-[Service]\n\
-PIDFile=/run/gunicorn/pid\n\
-User=pi\n\
-Group=dialout\n\
-WorkingDirectory=/opt/alarmdecoder-webapp\n\
-ExecStart=/usr/local/bin/gunicorn --worker-class=socketio.sgunicorn.GeventSocketIOWorker --timeout=120 --env=POLICY_SERVER=0 --log-level=debug wsgi:application\n\
-ExecReload=/bin/kill -s HUP $MAINPID\n\
-ExecStop=/bin/kill -s TERM $MAINPID\n\
-PrivateTmp=true\n\
-\n\
-[Install]\n\
-WantedBy=multi-user.target\n'\
->> /etc/systemd/user/gunicorn.service
+# RUN sudo echo -e '[Unit]\n\
+# Description=gunicorn daemon\n\
+# After=network.target\n\
+# \n\
+# [Service]\n\
+# PIDFile=/run/gunicorn/pid\n\
+# User=pi\n\
+# Group=dialout\n\
+# WorkingDirectory=/opt/alarmdecoder-webapp\n\
+# ExecStart=/usr/local/bin/gunicorn --worker-class=socketio.sgunicorn.GeventSocketIOWorker --timeout=120 --env=POLICY_SERVER=0 --log-level=debug wsgi:application\n\
+# ExecReload=/bin/kill -s HUP $MAINPID\n\
+# ExecStop=/bin/kill -s TERM $MAINPID\n\
+# PrivateTmp=true\n\
+# \n\
+# [Install]\n\
+# WantedBy=multi-user.target\n'\
+# >> /etc/systemd/system/gunicorn.service
 
 
 #nginx systemd file
@@ -242,11 +244,11 @@ RUN sudo chmod -R 777 /var/log/supervisor
 
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY gen_certs.sh /home/pi/gen_certs.sh
-# RUN sudo chmod +x /home/pi/gen_certs.sh
+RUN sudo chmod +x /home/pi/gen_certs.sh
 
 
 COPY start_services.sh /usr/local/bin/start_services.sh
-# RUN sudo chmod +x /usr/local/bin/start_services.sh
+RUN sudo chmod +x /usr/local/bin/start_services.sh
 
 #Chage start args in ser2sock to run as pi user
 RUN sudo sed -i 's/EXTRA_START_ARGS=/#EXTRA_START_ARGS=/g' /etc/init.d/ser2sock
