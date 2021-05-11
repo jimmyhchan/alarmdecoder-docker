@@ -12,6 +12,7 @@ RUN sudo systemctl disable serial-getty@ttyAMA0.service
 # Install dependencies
 RUN sudo apt-get update && sudo apt-get install -y \
     supervisor \
+    logrotate \
     wget \
     unzip \
     minicom \
@@ -42,25 +43,24 @@ RUN sudo apt-get update && sudo apt-get install -y \
 
 # TODO: is this needed?
 #setup hostname
-#RUN sudo su -c 'echo alarmdecoder > /etc/hostname'
+RUN sudo su -c 'echo alarmdecoder > /etc/hostname'
 
-# TODO: is this needed?
 #setup avahi config
-# RUN sudo echo -e '<?xml version="1.0" standalone="no"?>\n\
-# <!DOCTYPE service-group SYSTEM "avahi-service.dtd">\n\
-# <service-group>\n\
-# \t<name replace-wildcards="yes">%h</name>\n\
-# \t<service>\n\
-# \t\t<type>_device-info._tcp</type>\n\
-# \t\t<port>0</port>\n\
-# \t\t<txt-record>model=AlarmDecoder</txt-record>\n\
-# \t</service>\n\
-# \t<service>\n\
-# \t\t<type>_ssh._tcp</type>\n\
-# \t\t<port>22</port>\n\
-# \t</service>\n\
-# </service-group>'\
-# >> /etc/avahi/services/alarmdecoder.service
+RUN sudo echo -e '<?xml version="1.0" standalone="no"?>\n\
+<!DOCTYPE service-group SYSTEM "avahi-service.dtd">\n\
+<service-group>\n\
+\t<name replace-wildcards="yes">%h</name>\n\
+\t<service>\n\
+\t\t<type>_device-info._tcp</type>\n\
+\t\t<port>0</port>\n\
+\t\t<txt-record>model=AlarmDecoder</txt-record>\n\
+\t</service>\n\
+\t<service>\n\
+\t\t<type>_ssh._tcp</type>\n\
+\t\t<port>22</port>\n\
+\t</service>\n\
+</service-group>'\
+>> /etc/avahi/services/alarmdecoder.service
 
 # Define working directory
 WORKDIR /opt
@@ -126,7 +126,7 @@ RUN sudo echo "gunicorn hold" | sudo dpkg --set-selections
 FROM Libs as webapp
 WORKDIR /opt
 RUN sudo git clone http://github.com/nutechsoftware/alarmdecoder-webapp.git
-# RUN sudo chown -R pi:pi alarmdecoder-webapp
+RUN sudo chown -R pi:pi alarmdecoder-webapp
 WORKDIR /opt/alarmdecoder-webapp
 # RUN git fetch origin
 # RUN git checkout dev
@@ -148,7 +148,7 @@ RUN python manage.py initdb
 # RUN sudo cp contrib/nginx/alarmdecoder /etc/nginx/sites-available/
 # RUN sudo ln -s /etc/nginx/sites-available/alarmdecoder /etc/nginx/sites-enabled/
 # RUN sudo rm /etc/nginx/sites-enabled/default
-# RUN sudo cp contrib/gunicorn.d/alarmdecoder /etc/gunicorn.d/
+RUN sudo mkdir /etc/gunicorn.d && sudo cp contrib/gunicorn.d/alarmdecoder /etc/gunicorn.d/
 # TODO: move to ser2sock
 RUN sudo chown -R pi:pi /etc/ser2sock
 # RUN sudo usermod -a -G dialout pi
@@ -156,23 +156,23 @@ RUN sudo chown -R pi:pi /etc/ser2sock
 # RUN sudo chmod g+w /etc/hosts /etc/hostname
 
 #gunicorn systemd file
-# RUN sudo echo -e '[Unit]\n\
-# Description=gunicorn daemon\n\
-# After=network.target\n\
-# \n\
-# [Service]\n\
-# PIDFile=/run/gunicorn/pid\n\
-# User=pi\n\
-# Group=dialout\n\
-# WorkingDirectory=/opt/alarmdecoder-webapp\n\
-# ExecStart=/usr/local/bin/gunicorn --worker-class=socketio.sgunicorn.GeventSocketIOWorker --timeout=120 --env=POLICY_SERVER=0 --log-level=debug wsgi:application\n\
-# ExecReload=/bin/kill -s HUP $MAINPID\n\
-# ExecStop=/bin/kill -s TERM $MAINPID\n\
-# PrivateTmp=true\n\
-# \n\
-# [Install]\n\
-# WantedBy=multi-user.target\n'\
-# >> /etc/systemd/user/gunicorn.service
+RUN sudo echo -e '[Unit]\n\
+Description=gunicorn daemon\n\
+After=network.target\n\
+\n\
+[Service]\n\
+PIDFile=/run/gunicorn/pid\n\
+User=pi\n\
+Group=dialout\n\
+WorkingDirectory=/opt/alarmdecoder-webapp\n\
+ExecStart=/usr/local/bin/gunicorn --worker-class=socketio.sgunicorn.GeventSocketIOWorker --timeout=120 --env=POLICY_SERVER=0 --log-level=debug wsgi:application\n\
+ExecReload=/bin/kill -s HUP $MAINPID\n\
+ExecStop=/bin/kill -s TERM $MAINPID\n\
+PrivateTmp=true\n\
+\n\
+[Install]\n\
+WantedBy=multi-user.target\n'\
+>> /etc/systemd/user/gunicorn.service
 
 
 #nginx systemd file
@@ -208,26 +208,26 @@ RUN sudo chown -R pi:pi /etc/ser2sock
 # >> /etc/logrotate.d/alarmdecoder
 
 #gunicorn logrotate
-# RUN sudo echo -e '/var/log/gunicorn/*.log {\n\
-#   weekly\n\
-#   missingok\n\
-#   rotate 5\n\
-#   compress\n\
-#   delaycompress\n\
-#   notifempty\n\
-#   create 0640 www-data www-data\n\
-#   sharedscripts\n\
-#   postrotate\n\
-#   [ -s /run/gunicorn/alarmdecoder.pid ] && kill -USR1 `cat /run/gunicorn/alarmdecoder.pid`\n\
-#   endscript\n\
-# }'\
-# >> /etc/logrotate.d/gunicorn
+RUN sudo echo -e '/var/log/gunicorn/*.log {\n\
+  weekly\n\
+  missingok\n\
+  rotate 5\n\
+  compress\n\
+  delaycompress\n\
+  notifempty\n\
+  create 0640 www-data www-data\n\
+  sharedscripts\n\
+  postrotate\n\
+  [ -s /run/gunicorn/alarmdecoder.pid ] && kill -USR1 `cat /run/gunicorn/alarmdecoder.pid`\n\
+  endscript\n\
+}'\
+>> /etc/logrotate.d/gunicorn
 
 #fix ser2sock config
-# RUN sudo sed -i 's/raw_device_mode = 0/raw_device_mode = 1/g' /etc/ser2sock/ser2sock.conf
+RUN sudo sed -i 's/raw_device_mode = 0/raw_device_mode = 1/g' /etc/ser2sock/ser2sock.conf
 
 #fix permissions on webapp directory
-# RUN sudo chown -R pi:pi /opt/alarmdecoder-webapp
+RUN sudo chown -R pi:pi /opt/alarmdecoder-webapp
 
 #expose ports
 EXPOSE 80 443 5000 10000
@@ -235,23 +235,23 @@ EXPOSE 80 443 5000 10000
 USER pi
 
 # VOLUME /opt /etc/ser2sock /etc/nginx /var/log
+VOLUME /opt /etc/ser2sock /var/log
 
-# RUN mkdir -p /var/log/supervisor
-# RUN sudo chmod -R 777 /var/log/supervisor
+RUN mkdir -p /var/log/supervisor
+RUN sudo chmod -R 777 /var/log/supervisor
 
-# COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-# COPY gen_certs.sh /home/pi/gen_certs.sh
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY gen_certs.sh /home/pi/gen_certs.sh
 # RUN sudo chmod +x /home/pi/gen_certs.sh
 
-# RUN sudo apt-get install -y logrotate
 
-# COPY start_services.sh /usr/local/bin/start_services.sh
+COPY start_services.sh /usr/local/bin/start_services.sh
 # RUN sudo chmod +x /usr/local/bin/start_services.sh
 
 #Chage start args in ser2sock to run as pi user
-# RUN sudo sed -i 's/EXTRA_START_ARGS=/#EXTRA_START_ARGS=/g' /etc/init.d/ser2sock
-# RUN sudo sed -i 's/##EXTRA_START_ARGS=/EXTRA_START_ARGS=/g' /etc/init.d/ser2sock
-# RUN sudo sed -i 's/#RUN_AS=.*/RUN_AS=pi:pi/g' /etc/init.d/ser2sock
+RUN sudo sed -i 's/EXTRA_START_ARGS=/#EXTRA_START_ARGS=/g' /etc/init.d/ser2sock
+RUN sudo sed -i 's/##EXTRA_START_ARGS=/EXTRA_START_ARGS=/g' /etc/init.d/ser2sock
+RUN sudo sed -i 's/#RUN_AS=.*/RUN_AS=pi:pi/g' /etc/init.d/ser2sock
 
 # Define default command
-# CMD ["sudo", "/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+CMD ["sudo", "/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
