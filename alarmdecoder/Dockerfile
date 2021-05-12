@@ -133,6 +133,9 @@ WORKDIR /opt/alarmdecoder-webapp
 # RUN git checkout dev
 # RUN git checkout master
 # RUN pyenv virtualenv 2.7.18 alarmdecoder_app && pyenv activate alarmdecoder_app
+
+# remove numpy which takes forever to build and is used for the camera which im not using
+RUN sudo sed -i '/numpy/d' requirements.txt
 RUN sudo touch constraints.txt &&\
     echo 'cryptography==2.9.2' >> constraints.txt && \
     echo 'werkzeug==0.16.1' >> constraints.txt && \
